@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Digital Landscapes — Storymapping Wine in the Peloponnese</title>
+  <meta name="description" content="A0 digital poster & interactive storymap of Peloponnesian wine: archaeology, archaeometry, vineyards, presses, ports, and ancient texts." />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <style>
+  /* ==== THEME (dark) ==== */
+  :root{
+    --bg1:#1b0f0f; --bg2:#341919;
+    --paper:#fcf7ef; --ink:#2b2521; --ink-inv:#f6efe6;
+    --muted:#705e54; --accent:#b68c5a; --accent-2:#7aa7a6; --border:#4a3b32;
+    --prehist:#e4572e; --classical:#4e79a7; --byz:#8e6bbd; --textual:#59a14f;
+  }
+
+  html,body{height:100%;}
+  body{
+    margin:0;
+    color:var(--ink-inv);
+    font:16px/1.6 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+  }
+
+  /* ==== POSTER GRID (web) ==== */
+  .poster{max-width:1400px; margin:0 auto; padding:1rem;}
+
+/* Header — make room, prevent clipping, keep it on top */
+header.hero{
+  display:grid;
+  grid-template-columns: 250px 1fr 180px; /* wider left column */
+  gap:1rem; align-items:center;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--border); border-radius:16px; padding:1rem;
+  overflow:visible;
+  position: relative; z-index: 5;     /* <— stays above map/panels */
+}
+/* NEW: full-width panel inside the 2-col grid */
+.full { grid-column: 1 / -1; }
+.kicker{ text-transform:uppercase; letter-spacing:.12em; font-size:.8rem; color:var(--accent);}
+
+.lab-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100px;           /* tighter, fits header height */
+  overflow:visible;
+}
+
+.lab-vertical{
+  display:block !important;
+  height:75px;            /* smaller overall size */
+  transform-origin: center center;
+  object-fit:contain;
+  background:#fff;
+  border-radius:8px;
+  padding:6px;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+  opacity:0.95;           /* slightly translucent, blends better */
+}
+.symposium{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  width:100%;
+  margin:0 auto 1rem;
+  position:relative;
+}
+
+.symposium-logo{
+  height:130px;
+  object-fit:contain;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.35));
+}
+/* --- Leaflet popup readability theme --- */
+.leaflet-popup-content-wrapper{
+  background:#fffdfa;                 /* warm paper */
+  color:#2b2521;                      /* dark ink */
+  border:1px solid #786c5c;           /* subtle edge */
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  border-radius:14px;
+}
+.leaflet-popup-tip{
+  background:#fffdfa;
+  border:1px solid #8f816d;
+}
+
+/* --- refined map popup text palette --- */
+
+/* popup title */
+.leaflet-popup-content h4 {
+  margin: .1rem 0 .25rem;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2b44;   /* dark blue for site title */
+}
+
+/* popup subtitle (period · type) */
+.leaflet-popup-content .meta {
+  margin: .15rem 0 .4rem;
+  font-size: 13px;
+  color: #4e5972;   /* softer desaturated blue-grey */
+}
+
+/* popup body description text */
+.leaflet-popup-content p {
+  color: #616176;   /* your chosen muted grey-purple tone */
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+
+@media print {
+  .symposium-logo{ height:90mm; }
+}
+
+
+
+/* Right badge unchanged */
+.uni-logo{
+  height:84px; background:#fff; border-radius:8px; padding:6px;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+
+/* Make the next panels sit under the header */
+.panel, .toolbar, .legend { position: relative; z-index: 1; }
+  /* Layout panels */
+  .grid{display:grid; grid-template-columns: 1.2fr .9fr; gap:1rem; margin-top:1rem;}
+  @media (max-width:1100px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:16px; overflow:clip; box-shadow:0 10px 25px rgba(0,0,0,.35);}
+  .section{ padding:1rem 1.25rem; }
+
+h2{ margin:.2rem 0 .5rem; font-size:1.25rem; color:#f0e6db; }
+h3{ margin:.6rem 0 .3rem; font-size:1.05rem; color:#f0e6db; }
+p, li{ color:#f3ece3; }
+.small{ font-size:.9rem; color:#e6d7c8; }
+
+label{ color:#f3ece3; }
+input[type="search"]{ background:#2c2220; border:1px solid var(--border); color:#f3ece3; }
+.btn{ background:#2b221e; color:#f3ece3; }
+
+
+  /* ==== MAP BOX ==== */
+  #map{height:min(74vh,760px); min-height:480px;}
+  .toolbar{
+    display:flex; flex-wrap:wrap; align-items:center; gap:.6rem .8rem;
+    padding:.6rem 1rem; background:rgba(30,25,22,.92); border-bottom:1px solid var(--border);
+  }
+  .badge{padding:.2rem .6rem; border-radius:999px; border:1px solid var(--border); font-size:.8rem; color:#e6d7c8;}
+  .group{display:flex; flex-wrap:wrap; gap:.5rem .8rem; align-items:center;}
+  label{color:#66625e}
+  input[type="search"]{background:#2c2220; border:1px solid var(--border); color:#616176; padding:.45rem .6rem; border-radius:10px;}
+  .btn{display:inline-flex; gap:.5rem; align-items:center; padding:.5rem .8rem; border-radius:10px; border:1px solid var(--border); background:#2b221e; color:#616176; cursor:pointer;}
+
+  /* ==== LEGEND ==== */
+  .legend{display:flex; flex-wrap:wrap; align-items:center; gap:.6rem .9rem; padding:.6rem 1rem; background:rgba(30,25,22,.92); border-top:1px solid var(--border);}
+  .key{display:flex; align-items:center; gap:.4rem;}
+  .dot{width:14px; height:14px; border-radius:50%; border:2px solid #111827;}
+  .sym{display:inline-grid; place-items:center; width:18px; height:18px; border-radius:4px; background:#111827; color:#fff; font-size:12px; font-weight:700;}
+
+  /* ===== Figures / images ===== */
+.figure {
+  margin: 0;
+  border-top: 1px solid var(--border);
+  background: rgba(255,255,255,.04);
+}
+.figure img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  border-bottom: 1px solid var(--border);
+}
+.figure figcaption {
+  padding: .75rem 1rem;
+  font-size: .95rem;
+  color: #e6d7c8;
+}
+
+/* Text block under map */
+.story-blurb h3 {
+  margin: .2rem 0 .4rem;
+  color: #f0e6db;
+  font-size: 1.1rem;
+}
+.story-blurb p { margin: .35rem 0; }
+
+/* QR badge */
+.qr-card {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: .75rem;
+  align-items: center;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: .6rem .8rem;
+}
+.qr-card img {
+  width: 120px;
+  height: 120px;
+  border-radius: 10px;
+  background: #fff;
+}
+.qr-card small {
+  display: block;
+  color: #e6d7c8;
+  opacity: .9;
+}
+.qr-card strong { color: #f0e6db; }
+
+  /* ==== PRINT (A0 portrait) ==== */
+  @media print{
+    @page{size: A0 portrait; margin:15mm;}
+    body{background:white; color:var(--ink);}
+    .poster{max-width:none;}
+    header.hero, .panel{background:white; color:var(--ink); border-color:#ddd;}
+    .legend, .toolbar{background:#f7f7f7;}
+    h2,h3{color:#222}
+    p,li{color:#111}
+  }
+/* Restore poster text colors */
+#story h2{ color:#f0e6db !important; }
+#story h3{ color:#f0e6db !important; }
+#story p, #story li{ color:#f3ece3 !important; }
+#story .small{ color:#e6d7c8 !important; }
+
+/* Restore toolbar/filters text contrast */
+.toolbar label{ color:#f3ece3 !important; }
+.toolbar input[type="search"]{ color:#f3ece3 !important; }
+.toolbar .btn{ color:#f3ece3 !important; }
+
+
+</style>
+</head>
+<body>
+  <div class="poster">
+    <!-- Symposium banner centered at the very top -->
+    <div class="symposium">
+      <img class="symposium-logo" src="HSA.png" alt="9th HSA Symposium" />
+    </div>
+    <header class="hero">
+  <!-- Left: Laboratory of Archaeometry logo -->
+  <div class="lab-wrap">
+    <img
+      class="lab-vertical"
+      src="uop_lab_archaeometry_logo.png"
+      alt="Laboratory of Archaeometry"
+      draggable="false"
+      onerror="this.src='uop_lab_archaeometry_logo.png?b='+Date.now(); this.onerror=null;"
+    />
+  </div>
+
+  <!-- Center: Title & authors -->
+  <div>
+    <div class="eyebrow">Laboratory of Archaeometry · University of the Peloponnese</div>
+    <h1 class="title">
+      Digital Landscapes: Storymapping the Archaeology & Archaeometry of Wine in the Peloponnese
+    </h1>
+    <p class="authors">
+      Vassiliki Valantou*, Vayia V. Panagiotidis — Department of History, Archaeology & Cultural Heritage Management, University of the Peloponnese.
+      *Corresponding author.
+    </p>
+  </div>
+
+  <!-- Right: University logo only -->
+  <div style="display:flex; align-items:center; justify-content:center;">
+    <img class="uni-logo" src="UOP.png" alt="University of the Peloponnese" />
+  </div>
+</header>
+
+<!-- NEW: INTRODUCTION (spans both columns) -->
+<section class="panel section full" id="intro">
+  <div class="kicker">Introduction</div>
+  <h2>Digital Landscapes of Wine in the Peloponnese</h2>
+  <p>
+    The Peloponnese preserves one of the most continuous and richly documented landscapes of viticulture in the Mediterranean. 
+    Archaeological, archaeobotanical, and textual evidence trace the evolution of wine production from the Early Bronze Age to 
+    the modern appellations of Nemea, Mantineia, and Monemvasia. Archaeobotanical analyses of charred grape remains and pips 
+    from sites such as Lerna, Tiryns, and Asea demonstrate the incipient domestication and processing of <em>Vitis vinifera</em> 
+    by the third millennium BCE, while complementary residue and pithos studies confirm early fermentation activity across the 
+    northeastern Peloponnese.
+  <br>
+    Regional archaeological surveys — particularly the Nemea Valley Archaeological Project (NVAP) — have illuminated how 
+    settlement systems, terraced slopes, and vineyard micro-zones co-evolved from prehistory through the Classical and 
+    Hellenistic periods. From the medieval era onward, the Monemvasia–Malvasia relationship provides a compelling case of 
+    how local viticulture became a trans-Mediterranean commodity: genetic and historical work trace the linguistic and 
+    varietal lineage of Malvasia wines back to their fortified port of origin. This continuity is mirrored in later records 
+    of Mantineia and Nemea, today protected as PDO regions.
+  
+  <br>
+    The present project integrates these datasets into a digital interactive map built in <strong>LeafletJS</strong>, 
+    linking excavation reports, archaeometric studies, and current vineyard distributions. By combining spatial archaeology, 
+    archaeometry, and digital humanities, the project offers a framework for visualizing and narrating the long history of 
+    viticulture in southern Greece — from prehistoric pithoi and pressing floors to medieval ports and monastic trade networks.
+    </p>
+</section>
+
+    <div class="grid">
+      <!-- MAP & LEGEND COLUMN -->
+      <section class="panel">
+        
+        <div class="toolbar">
+          <span class="badge"><span id="count">0</span> places</span>
+          <div class="group"><strong>Period:</strong>
+            <label><input type="checkbox" data-filter-period value="Prehistoric" checked> Prehistoric</label>
+            <label><input type="checkbox" data-filter-period value="Classical–Hellenistic–Roman" checked> Classical–Hellenistic–Roman</label>
+            <label><input type="checkbox" data-filter-period value="Byzantine–Medieval–Ottoman" checked> Byzantine–Medieval–Ottoman</label>
+            <label><input type="checkbox" data-filter-period value="Textual testimony" checked> Textual</label>
+          </div>
+            <!-- Image and short text block right below the map -->
+  
+
+  
+
+          <div class="group"><strong>Type:</strong>
+  <label><input type="checkbox" data-filter-type value="Archaeological site" checked> Arch. site</label>
+  <label><input type="checkbox" data-filter-type value="Vineyard / production area" checked> Vineyard</label>
+  <label><input type="checkbox" data-filter-type value="Storage / installation" checked> Storage/Press</label>
+  <label><input type="checkbox" data-filter-type value="Trade / monastic / port" checked> Trade/Monastic/Port</label>
+  <label><input type="checkbox" data-filter-type value="Literary reference" checked> Literary</label>
+</div>
+
+          <input id="q" type="search" placeholder="Search name or description…" />
+          <button class="btn" id="fit">Fit to map</button>
+        </div>
+        <div id="map"></div>
+        <div class="legend">
+          <div class="key"><span class="dot" style="background:var(--prehist)"></span><span>Prehistoric</span></div>
+          <div class="key"><span class="dot" style="background:var(--classical)"></span><span>Classical–Hellenistic–Roman</span></div>
+          <div class="key"><span class="dot" style="background:var(--byz)"></span><span>Byzantine–Medieval–Ottoman</span></div>
+          <div class="key"><span class="dot" style="background:var(--textual)"></span><span>Textual testimony</span></div>
+          <div class="key"><span class="sym">●</span><span>Archaeological site</span></div>
+          <div class="key"><span class="sym">■</span><span>Storage / installation</span></div>
+          <div class="key"><span class="sym">◆</span><span>Vineyard / production</span></div>
+          <div class="key"><span class="sym">▲</span><span>Trade / monastic / port</span></div>
+          <div class="key"><span class="sym">✦</span><span>Literary reference</span></div>
+        </div>
+        <section class="panel">
+  <figure class="figure">
+    <img src="1771.png" alt="Kastania church engraving about wine price">
+    <figcaption>Kastania church engraving with wine prices</figcaption>
+  </figure>
+  
+</section>
+        <div class="section story-blurb">
+    <section class="panel section" id="methods">
+  <div class="kicker">Data &amp; Classification</div>
+  <h2>How the Data Are Organized</h2>
+  <p>
+    Each record combines a name, period, type, short description, and a geocoded location (Nominatim).
+    Periods determine the marker’s <em>color</em>; types determine the <em>symbol</em>. This keeps the legend stable and
+    legible across zoom scales.
+  </p>
+
+  <h3>Periods (marker color)</h3>
+  <ul>
+    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--prehist);margin-right:.4rem;"></span>Prehistoric</li>
+    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--classical);margin-right:.4rem;"></span>Classical–Hellenistic–Roman</li>
+    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--byz);margin-right:.4rem;"></span>Byzantine–Medieval–Ottoman</li>
+    <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--textual);margin-right:.4rem;"></span>Textual testimony</li>
+  </ul>
+
+  <h3>Types (marker symbol)</h3>
+  <ul>
+    <li>● Archaeological site</li>
+    <li>■ Storage / installation (pithoi, linos, vats)</li>
+    <li>◆ Vineyard / production area</li>
+    <li>▲ Trade / monastic / port</li>
+    <li>✦ Literary reference</li>
+  </ul>
+
+  <h3>Geocoding &amp; Interaction</h3>
+  <p>
+    Locations are resolved with Nominatim and cached locally to improve performance. The map uses
+    custom inline SVG icons, accessible popups (title, subtitle, description), and a dark-theme leaflet
+    popup style for print and screen legibility.
+  </p>
+
+  
+</section>
+
+    
+  </div>
+      </section>
+      
+
+      <!-- STORY COLUMN -->
+      <section class="panel section" id="story">
+        <h2>Abstract</h2>
+        <p>The Peloponnese preserves one of the most continuous landscapes of viticulture in the Mediterranean, where archaeological, archaeobotanical, and historical evidence trace wine production from the Early Bronze Age to modern appellations. Archaeobotanical analyses have revealed carbonized grape remains and pips in settlement contexts from Lerna, Tiryns, and Asea, demonstrating the incipient domestication and processing of <em>Vitis vinifera</em> by the 3rd millennium BCE. Complementary archaeometric studies on pithoi and organic residues further confirm fermentation activity and wine-related residue signatures in ceramic assemblages across the northeastern Peloponnese. <span class="small">[1]</span></p>
+        <p>Regional archaeological surveys such as the Nemea Valley Archaeological Project (NVAP) have mapped the evolving relationship between settlement systems, terraced slopes, and vineyard microzones from the Bronze Age through the Classical period. These datasets illustrate how viticulture shaped and responded to the geomorphology, hydrology, and transport routes of central Peloponnesian valleys. From the medieval period onward, the Monemvasia–Malvasia relationship provides an exemplary case of the transformation of local viticulture into a trans-Mediterranean commodity; genetic and historical work traces the linguistic and varietal lineage of Malvasia wines back to the fortified port of Monemvasia. This continuity is mirrored in later records of Mantineia and Nemea, today designated as PDO regions. <span class="small">[2–3]</span></p>
+        <p>The present project integrates these data into a digital interactive map built with LeafletJS, linking excavation reports, archaeobotanical datasets, and current vineyard distributions. The accompanying HTML narrative situates each site within its chronological and cultural context, illustrating how geography, climate, and human craft have co-produced the Peloponnesian wine landscape over five millennia. By combining archaeology, archaeometry, and digital humanities, this work offers a spatial storytelling framework for interpreting the heritage of wine in southern Greece. <span class="small">[4]</span></p>
+
+        <h2>Periods & Evidence</h2>
+        <h3>Prehistoric (Neolithic–Bronze Age): Vitis pips & charcoal</h3>
+        <ul>
+          <li>Franchthi (Early/Middle Neolithic); Drakaina (Late Neolithic); Tiryns & Lerna (Early Bronze Age); Argos/Aspis (Middle Bronze Age); Midea (Late Bronze Age); Tsoungiza & Ayia Sotiria (EB/LH III); Kouphovouno & Nichoria (Middle Bronze Age); Romanos P.O.T.A.; Palace of Nestor (storerooms with 35 pithoi and 40 sealings, four with the wine ideogram); Kassaneva; Mycenae (amphorae with wine, resin, rue, honey). <span class="small">[1]</span></li>
+          
+        </ul>
+        
+        <h3>Classical–Hellenistic–Roman–Late Roman</h3>
+        <ul>
+          <li>Mount Taygetos (Dentheliatis wine area; Platana–Koutsavitiko); Ancient Messene (grape pips; Roman villa linos); Ancient Thouria (late antique linos with hydraulic plaster and outflow). Nemea/Phlious (Phliasian wine; expansion with Nemean Games from 573 BCE). Production/press installations across Exo Agyia & Patras (rural villas), Ancient Corinth, Derveni, Berbati, Elliniko “Pyramid,” Doroufi (Kranidi), Lousoi (Kalavryta), Veligosti (Megalopolis), Kalliani (Tropaia), Manari (Asea), Figaleia, Sparta–Karavas (km 0+700), Kokkiniko Magoula (near Sparta acropolis), Parori (W of Sparta), Mavrovouni (Gytheio), and early Byzantine Olympia.</li>
+        </ul>
+        <figure class="figure">
+    <img src="Thouria.png" alt="Ancient Thouria theater linos">
+    <figcaption>Ancient Thouria theater linos</figcaption>
+  </figure>
+        <h3>Byzantine–Medieval–Ottoman</h3>
+        <ul>
+          <li>Ancient Thouria (Theater linos, 12th–15th c.); Monemvasia — first attested 1214 by Nikolaos Mesarites (Malvasia wine at the imperial table); Methoni — Vin San Leo (Paleomethone) with Cistercian nuns before 1267; Methoni — Muscat and “Romanian wines” noted by travelers.</li>
+        </ul>
+        <h3>Ancient Written Testimony</h3>
+        <ul>
+          <li>Homer, <em>Iliad</em> IX 153–155: Arcadia as “vine‑clad”. Pausanias, <em>Description of Greece</em> (2 & 8): wines of Mantineia; vineyards of Nemea/Argolid; Dionysos in Phlious. Aristotle (via Theophrastus), <em>De Plantis</em>: terroir differences. Theophrastus, <em>Causes of Plants</em> V.3.7: regional vine varieties.</li>
+        </ul>
+      </section>
+    </div>
+<!-- LEFT: image + short story under the map -->
+
+<!-- NEW: full-width references section -->
+<section class="panel section full" id="references">
+  <div class="kicker">References</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1.5rem;flex-wrap:wrap;">
+  <ol class="small" style="flex:1;min-width:500px;margin:0;">
+    <li>
+      Valamoti, S. M., Ntinou, M., Pagnoux, C., et al. (2020).
+      More than meets the eye: New archaeobotanical evidence on Bronze Age viticulture and wine making in the Peloponnese, Greece.
+      <em>Vegetation History and Archaeobotany</em>, 29, 35–50.
+    </li>
+    <li>
+      Wright, J. C., Cherry, J. F., Davis, J. L., Mantzourani, E., Sutton, S. (1990).
+      The Nemea Valley Archaeological Project: A Preliminary Report.
+      <em>Hesperia</em>, 59, 579–659.
+    </li>
+    <li>
+      Fort, F. (2025).
+      Origin and Possible Members of the “Malvasia” Family.
+      <em>Horticulturae</em>, 11(6), 561.
+    </li>
+    <li>
+      Panagiotidis, V. V., & Zacharias, N. (2022).
+      Digital Mystras: An approach towards understanding the use of an archaeological space.
+      <em>Scientific Culture</em>, 8(3), 89–103. DOI: 10.5281/zenodo.6640278.
+    </li>
+  </ol>
+
+  <!-- QR Code on the same line to the right -->
+  <div style="text-align:center;min-width:120px;">
+    <img src="qr_interactive_poster.png"
+         alt="QR code to open the interactive poster"
+         style="height:100px;width:100px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.35);">
+    <div style="font-size:0.9rem;color:#e6d7c8;margin-top:0.3rem;">
+      <strong>SCAN ME!</strong><br>Interactive Storymap
+    </div>
+  </div>
+</div>
+</section>
+
+    <footer class="section small">© 2025 Laboratory of Archaeometry, University of the Peloponnese — This ongoing project showcases the continuity of vineyards and wine production in the Peloponnese to the present.</footer>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    // ====== DATA from your doc files (EN) ======
+    const SITES = [
+      // PREHISTORIC
+      { name:'Franchthi Cave', period:'Prehistoric', type:'Archaeological site', query:'Franchthi Cave, Argolida, Greece', description:'Early–Middle Neolithic cave with carbonized Vitis pips and charcoal remains.' },
+      { name:'Drakaina Cave', period:'Prehistoric', type:'Archaeological site', query:'Drakaina Cave, Kefalonia, Greece', description:'Late Neolithic cave with Vitis remains (regional corpus).'},
+      { name:'Tiryns', period:'Prehistoric', type:'Archaeological site', query:'Tiryns, Argolida, Greece', description:'Early Bronze Age contexts with grape pips and charcoal.'},
+      { name:'Lerna', period:'Prehistoric', type:'Archaeological site', query:'Lerna archaeological site, Argolida, Greece', description:'Early Bronze Age settlement with grape remains.'},
+      { name:'Argos (Aspis Hill)', period:'Prehistoric', type:'Archaeological site', query:'Aspida Hill, Argos, Greece', description:'Middle Bronze Age evidence for grape use.'},
+      { name:'Midea', period:'Prehistoric', type:'Archaeological site', query:'Midea archaeological site, Argolida, Greece', description:'Late Bronze Age Mycenaean citadel; plant remains reported.'},
+      { name:'Tsoungiza (Ancient Nemea)', period:'Prehistoric', type:'Archaeological site', query:'Tsoungiza, Ancient Nemea, Greece', description:'Early Bronze Age material; part of the Nemea valley corpus.'},
+      { name:'Ayia Sotiria (Nemea)', period:'Prehistoric', type:'Archaeological site', query:'Agia Sotira, Nemea, Corinthia, Greece', description:'Late Bronze Age (LH III) contexts with grape evidence.'},
+      { name:'Kouphovouno (Sparta area)', period:'Prehistoric', type:'Archaeological site', query:'Kouphovouno, Sparta, Laconia, Greece', description:'Middle Bronze Age settlement with plant remains.'},
+      { name:'Nichoria', period:'Prehistoric', type:'Archaeological site', query:'Nichoria, Messenia, Greece', description:'Middle Bronze Age site; grape pips reported.'},
+      { name:'Romanos (P.O.T.A. zone)', period:'Prehistoric', type:'Archaeological site', query:'Romanos, Messinia, Greece', description:'Early Bronze Age contexts identified during development works.'},
+      { name:'Palace of Nestor (Pylos)', period:'Prehistoric', type:'Storage / installation', query:'Palace of Nestor, Pylos, Greece', description:'Storeroom with 35 pithoi; 40 sealings, four bearing the wine ideogram.'},
+      { name:'Kassaneva', period:'Prehistoric', type:'Archaeological site', query:'Kassaneva, Peloponnese, Greece', description:'Early Bronze Age site (location to refine).'},
+      { name:'Mycenae (palatial complex)', period:'Prehistoric', type:'Storage / installation', query:'Mycenae archaeological site, Argolida, Greece', description:'Amphorae with wine traces; wine with resin, rue, and honey (residue studies).'},
+      { name:'Kastania, Mani', period:'Prehistoric', type:'Archaeological site', query:'Kastania, Mani, Mani, Greece', description:'Εngraving from 1771 in the small church of Panagia in Kastania refers to the price of wine.'},
+
+
+      // CLASSICAL–HELLENISTIC–ROMAN
+      { name:'Mount Taygetos (Dentheliatis wine area)', period:'Classical–Hellenistic–Roman', type:'Vineyard / production area', query:'Alagonia, Messenia, Greece', description:'Denthi wine reputed from the Dentheliatis (central Taygetos). Villages: Nedousa, Artemisia, Piges, Alagonia, Ladas, Karveli. Traditional Platana–Koutsavitiko variety.'},
+      { name:'Ancient Messene', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Ancient Messene, Messenia, Greece', description:'Hellenistic pyre N of the Gymnasium yielded Vitis seeds; Roman villa with winepress (linos).'},
+      { name:'Ancient Thouria (Late Antique linos)', period:'Classical–Hellenistic–Roman', type:'Storage / installation', query:'Ancient Thouria archaeological site, Messinia, Greece', description:'Rectangular linos with hydraulic plaster and outlet to a sub‑linos vat.'},
+      { name:'Nemea / Phlious (Phliasian wine)', period:'Classical–Hellenistic–Roman', type:'Vineyard / production area', query:'Nemea, Corinthia, Greece', description:'Phliasian wine from the Nemean plain; expansion with Nemean Games (from 573 BCE) and relocation to Phlious.'},
+      { name:'Exo Agyia (Patras) — rural villas', period:'Classical–Hellenistic–Roman', type:'Storage / installation', query:'Exo Agyia, Patras, Greece', description:'Winepress (linos) and under‑linos vats in Roman rural estates.'},
+      { name:'Patras — rural villas', period:'Classical–Hellenistic–Roman', type:'Storage / installation', query:'Patras, Achaea, Greece', description:'Winepress and under‑linos installations of Roman date.'},
+      { name:'Ancient Corinth — production facilities', period:'Classical–Hellenistic–Roman', type:'Storage / installation', query:'Ancient Corinth, Greece', description:'Facilities associated with wine production.'},
+      { name:'Derveni (Corinthia) — production', period:'Classical–Hellenistic–Roman', type:'Storage / installation', query:'Derveni, Corinthia, Greece', description:'Wine production installations reported.'},
+      { name:'Berbati (Argolida)', period:'Classical–Hellenistic–Roman', type:'Storage / installation', query:'Berbati valley, Argolida, Greece', description:'Processing/storage installations in the Argolid.'},
+      { name:'“Pyramid” of Elliniko (Argolida)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Pyramid of Elliniko, Argos, Greece', description:'Site referenced within a production landscape.'},
+      { name:'Doroufi (Kranidi)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Doroufi, Kranidi, Greece', description:'Coastal production/trade sphere of Ermionida.'},
+      { name:'Lousoi (Kalavryta area)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Lousoi, Kalavryta, Greece', description:'Upland production zone at the Arcadia–Achaea boundary.'},
+      { name:'Megalopolis — Veligosti', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Veligosti, Megalopolis, Arcadia, Greece', description:'Regional installations and storage contexts.'},
+      { name:'Kalliani (Tropaia, W Arcadia)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Kalliani, Tropaia, Arcadia, Greece', description:'Installations in western Arcadia.'},
+      { name:'Manari (chora of ancient Asea)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Manari, Arcadia, Greece', description:'Processing/production evidence near Asea.'},
+      { name:'Figaleia (Arcadia)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Figaleia, Arcadia, Greece', description:'Installations and viticultural landscape.'},
+      { name:'Sparta–Karavas (km 0+700)', period:'Classical–Hellenistic–Roman', type:'Storage / installation', query:'Sparta to Karavas road, Laconia, Greece', description:'Installation near the road alignment.'},
+      { name:'Kokkiniko Magoula (near Sparta acropolis)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Sparta acropolis area, Laconia, Greece', description:'Site with production/storage evidence ~2 km from acropolis.'},
+      { name:'Parori (W of Sparta)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Parori, Sparta, Greece', description:'Settlement with traces of wine‑related activity.'},
+      { name:'Mavrovouni (Gytheio)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Mavrovouni, Gytheio, Greece', description:'Coastal zone with wine‑related activity.'},
+      { name:'Ancient Olympia (early Byzantine settlement)', period:'Classical–Hellenistic–Roman', type:'Archaeological site', query:'Ancient Olympia, Greece', description:'Winemaking facilities associated with the early Byzantine occupation.'},
+
+      // BYZANTINE–MEDIEVAL–OTTOMAN
+      { name:'Ancient Thouria — Theater linos', period:'Byzantine–Medieval–Ottoman', type:'Storage / installation', query:'Ancient Thouria theater, Messinia, Greece', description:'Rectangular basin (linos) with tiled floor and thick hydraulic mortar; likely 12th–15th c.'},
+      { name:'Monemvasia — Malvasia wine (1214)', period:'Byzantine–Medieval–Ottoman', type:'Trade / monastic / port', query:'Monemvasia, Laconia, Greece', description:'Nikolaos Mesarites notes Monemvasian wine at the imperial table; later Venetian hub.'},
+      { name:'Methoni — Vin San Leo (Paleomethone)', period:'Byzantine–Medieval–Ottoman', type:'Trade / monastic / port', query:'Paleomethoni, Messinia, Greece', description:'Production near church/monastery of St. Leo; Cistercian foundation before 1267; likely sweet dessert wine.'},
+      { name:'Methoni — Muscat & “Romanian wines”', period:'Byzantine–Medieval–Ottoman', type:'Trade / monastic / port', query:'Methoni, Messinia, Greece', description:'Travellers praise Muscat; “Romania” wine with resin‑lined barrels for preservation.'},
+      { name:'Thalames, Mani', period:'Byzantine–Medieval–Ottoman', type:'Archaeological site', query:'Thalames,Mani, Messenia, Greece', description:'Wine press of the Ottoman period.'},
+      { name:'Lagkada, Mani', period:'Byzantine–Medieval–Ottoman', type:'Archaeological site', query:'Lagkada,Mani, Messenia, Greece', description:'Wine press of the Ottoman period.'},  
+      
+      // TEXTUAL
+      { name:'Homer — Iliad IX 153–155', period:'Textual testimony', type:'Literary reference', query:'Arcadia, Peloponnese, Greece', description:'Arcadia described as “vine‑clad”.'},
+      { name:'Pausanias — Description of Greece (2 & 8)', period:'Textual testimony', type:'Literary reference', query:'Nemea and Mantineia, Peloponnese, Greece', description:'Wines of Mantineia; vineyards of Nemea/Argolid; Dionysos in Phlious.'},
+      { name:'Aristotle (via Theophrastus) — De Plantis', period:'Textual testimony', type:'Literary reference', query:'Arcadia, Peloponnese, Greece', description:'Differentiation of grapes and wines by locale; “finer” aromas in Arcadia.'},
+      { name:'Theophrastus — Causes of Plants V.3.7', period:'Textual testimony', type:'Literary reference', query:'Peloponnese, Greece', description:'Catalogues regional vine varieties, including Peloponnesian types.'}
+    ];
+
+    // ====== MAP ======
+    const map = L.map('map',{zoomControl:true, scrollWheelZoom:true});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+    // Center on Peloponnese immediately so the map shows even if geocoding stalls
+    map.setView([37.45, 22.45], 8);
+    const COLORS={ 'Prehistoric':'--prehist', 'Classical–Hellenistic–Roman':'--classical', 'Byzantine–Medieval–Ottoman':'--byz', 'Textual testimony':'--textual'};
+    const ICONS={ 'Archaeological site':'●','Vineyard / production area':'◆','Storage / installation':'■','Trade / monastic / port':'▲','Literary reference':'✦' };
+
+    const group=L.layerGroup().addTo(map);
+
+    function iconFor(site){
+      const color = getComputedStyle(document.documentElement).getPropertyValue(COLORS[site.period]||'var(--classical)').trim() || '#888';
+      const sym = ICONS[site.type]||'●';
+      const svg = encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
+        <circle cx='16' cy='16' r='12' fill='${color}' stroke='#111827' stroke-width='2'/>
+        <text x='16' y='21' text-anchor='middle' font-size='16' fill='white' font-family='system-ui'>${sym}</text>
+      </svg>`);
+      return L.icon({iconUrl:`data:image/svg+xml;utf8,${svg}`, iconSize:[28,28], iconAnchor:[14,14], popupAnchor:[0,-10]});
+    }
+
+    function popup(site){
+  return `
+    <article style="max-width:300px">
+      <h4>${site.name}</h4>
+      <div class="meta">${site.period} · ${site.type}</div>
+      <p>${site.description || ''}</p>
+    </article>`;
+}
+
+    const CACHE = JSON.parse(localStorage.getItem('geoCache_v1')||'{}');
+    async function geocode(q){
+      if(!q) return null; const key=q.trim(); if(CACHE[key]) return CACHE[key];
+      const url=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=gr`;
+      const r = await fetch(url,{headers:{'Accept-Language':'en'}}); const js=await r.json();
+      if(js && js[0]){ const ll=[parseFloat(js[0].lat), parseFloat(js[0].lon)]; CACHE[key]=ll; localStorage.setItem('geoCache_v1', JSON.stringify(CACHE)); await new Promise(res=>setTimeout(res,700)); return ll; }
+      return null;
+    }
+
+    async function addSites(){
+      group.clearLayers();
+      for(const s of SITES){
+        let ll=s.coords; if(!ll) ll=await geocode(s.query);
+        if(!ll) {console.warn('No coords for', s.name); continue;}
+        s.coords=ll; const m=L.marker(ll,{icon:iconFor(s)}).addTo(group); m.bindPopup(popup(s));
+      }
+      fit(); count(); filter();
+    }
+
+    function fit(){ const pts=[]; group.eachLayer(l=>pts.push(l.getLatLng())); if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.12)); else map.setView([37.5,22.5],7); }
+    function count(){ let n=0; group.eachLayer(()=>n++); document.getElementById('count').textContent=n; }
+
+    const activeP=new Set(['Prehistoric','Classical–Hellenistic–Roman','Byzantine–Medieval–Ottoman','Textual testimony']);
+    const activeT=new Set(Object.keys(ICONS));
+    document.querySelectorAll('[data-filter-period]').forEach(cb=>cb.addEventListener('change',e=>{ e.target.checked?activeP.add(e.target.value):activeP.delete(e.target.value); filter(); }));
+    document.querySelectorAll('[data-filter-type]').forEach(cb=>cb.addEventListener('change',e=>{ e.target.checked?activeT.add(e.target.value):activeT.delete(e.target.value); filter(); }));
+    const qIn=document.getElementById('q'); qIn.addEventListener('input',filter);
+
+    function filter(){ const q=(qIn.value||'').toLowerCase(); group.eachLayer(m=>{
+      const s=SITES.find(x=>x.coords && m.getLatLng().lat===x.coords[0] && m.getLatLng().lng===x.coords[1]); if(!s) return;
+      const okP=activeP.has(s.period); const okT=activeT.has(s.type); const okQ=!q || (s.name+' '+(s.description||'')).toLowerCase().includes(q);
+      if(okP && okT && okQ){ m.addTo(group);} else { group.removeLayer(m);} }); }
+
+    document.getElementById('fit').addEventListener('click',fit);
+    addSites();
+  </script>
+</body>
+</html>
