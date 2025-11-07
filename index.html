@@ -236,6 +236,96 @@ input[type="search"]{ background:#2c2220; border:1px solid var(--border); color:
 .toolbar input[type="search"]{ color:#f3ece3 !important; }
 .toolbar .btn{ color:#f3ece3 !important; }
 
+/* ============== RESPONSIVE FIXES ============== */
+
+/* Make images and the QR scale nicely */
+img, svg, video { max-width: 100%; height: auto; }
+
+/* Avoid any hard clipping on panels on small screens */
+.panel { overflow: hidden; }
+
+/* Let long legend/toolbars scroll horizontally on phones */
+.toolbar, .legend {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure the poster has breathing room on small viewports */
+.poster { padding-inline: clamp(.75rem, 2vw, 1rem); }
+
+/* Title scales with viewport */
+.title {
+  font-size: clamp(1.25rem, 2.2vw + 1rem, 2rem);
+  line-height: 1.2;
+}
+
+/* Header: switch to 2 rows, logos shrink */
+@media (max-width: 980px){
+  header.hero{
+    grid-template-columns: 1fr 120px;   /* text + uni logo */
+    grid-auto-rows: auto;
+    align-items: center;
+  }
+  .lab-wrap{ display:none; }            /* hide tall lab logo on narrow */
+  .uni-logo{ height:64px; }
+  .symposium-logo{ height:96px; }
+}
+
+/* Single-column layout under 1100px, but keep “map + text” order tidy */
+@media (max-width: 1100px){
+  .grid{
+    grid-template-columns: 1fr;
+    gap: .9rem;
+  }
+}
+
+/* Map box: flexible height on mobile, taller on desktop */
+#map{
+  /* fallback (desktop) is in your original CSS; mobile uses below */
+}
+@media (max-width: 900px){
+  #map{
+    height: min(60vh, 520px);
+    min-height: 320px;
+  }
+}
+
+/* Keep popups readable on small screens */
+.leaflet-popup-content { font-size: 15px; }
+.leaflet-popup-content-wrapper{ max-width: min(86vw, 380px); }
+
+/* Cards/sections spacing on small */
+.section{ padding: .9rem 1rem; }
+
+/* The image-with-caption card under the map should not overflow */
+.figure {
+  display: grid;
+  gap: .5rem;
+}
+.figure figcaption{
+  font-size: .95rem;
+  color: #d8cdbf;
+}
+
+/* Make filter chips/wrap look better on narrow widths */
+.group { row-gap: .4rem; }
+.group label { white-space: nowrap; }
+
+/* References: full-bleed feel but still responsive */
+#refs { padding: 1rem; }
+#refs ol { padding-left: 1.1rem; }
+
+/* QR block at footer area (if you positioned it near references) */
+.qr-footer {
+  display: flex; align-items: center; gap: .75rem;
+}
+.qr-footer img { width: clamp(84px, 16vw, 120px); height: auto; }
+
+@media (max-width: 700px){
+  .qr-footer {
+    justify-content: flex-start;        /* sit to the right on wide, left on narrow */
+  }
+}
 
 </style>
 </head>
@@ -468,7 +558,9 @@ input[type="search"]{ background:#2c2220; border:1px solid var(--border); color:
   </div>
 
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="">
+    
+  </script>
   <script>
     // ====== DATA from your doc files (EN) ======
     const SITES = [
@@ -592,6 +684,13 @@ input[type="search"]{ background:#2c2220; border:1px solid var(--border); color:
 
     document.getElementById('fit').addEventListener('click',fit);
     addSites();
+    // Recalculate map size after CSS layout changes
+const invalidate = () => map.invalidateSize({ animate: true });
+window.addEventListener('resize', () => { clearTimeout(window._mapR); window._mapR = setTimeout(invalidate, 120); });
+
+// Also fix when the panel first becomes visible (some browsers)
+setTimeout(invalidate, 250);
+
   </script>
 </body>
 </html>
